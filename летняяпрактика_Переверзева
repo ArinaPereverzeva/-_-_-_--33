@@ -1,0 +1,343 @@
+#Orangery.py
+
+class Orangery:
+    def __init__(self):
+        self._plants = []
+
+    def add_plant(self, plant):
+        self._plants.append(plant)
+
+    def step(self, temperature, water, soil, light):
+        for plant in self._plants:
+            plant.step(temperature, water, soil, light)
+        return self._plants
+
+#Plant.py
+
+class Plant:
+    def __init__(self, position):
+        self._radius = 0
+        self._color = (0, 0, 0)
+        self._name = "Plant"
+        self._position = position
+
+        self._ideal_temperature = None
+        self._ideal_water = None
+        self._ideal_soil = None
+        self._ideal_light = None
+
+        self.__start_radius = None
+        self.__start_color = None
+        self.__start_name = None
+
+    def _update_start_settings(self):
+        if not self.__start_radius and not self.__start_color and not self.__start_name:
+            self.__start_radius = self._radius
+            self.__start_color = self._color
+            self.__start_name = self._name
+
+    def reset(self):
+        self._radius = self.__start_radius
+        self._color = self.__start_color
+        self._name = self.__start_name
+
+    def get_ideal_chars(self):
+        return f"Температура: {self._ideal_temperature}\nВлажность: {self._ideal_water}\n" \
+               f"Качество почвы: {self._ideal_soil}\nУровень света: {self._ideal_light}"
+
+    def get_radius(self):
+        return self._radius
+
+    def get_color(self):
+        return self._color
+
+    def get_name(self):
+        return self._name
+
+    def get_position(self):
+        return self._position
+
+    def _update_color(self):
+        if self._radius < 10:
+            self._color = (255, 255, 51)   #желтый оттенок
+        elif self._radius < 30:
+            self._color = (102, 204, 0)    #зеленый оттенок
+        else:
+            self._color = (255, 51, 153)   #розовый оттенок
+
+    def _check_temperature(self, temperature):   #проверка температуры
+        if self._ideal_temperature is None:
+            return True
+        if self._ideal_temperature * 0.5 < temperature < self._ideal_temperature * 1.5:
+            return True
+        return False
+
+    def _check_water(self, water):   #проверка воды
+        if self._ideal_water is None:
+            return True
+        if self._ideal_water * 0.5 < water < self._ideal_water * 1.5:
+            return True
+        return False
+
+    def _check_soil(self, soil):   #проверка почвы
+        if self._ideal_soil is None:
+            return True
+        if self._ideal_soil * 0.5 < soil < self._ideal_soil * 1.5:
+            return True
+        return False
+
+    def _check_light(self, light):   #проверка света
+        if self._ideal_light is None:
+            return True
+        if self._ideal_light * 0.5 < light < self._ideal_light * 1.5:
+            return True
+        return False
+
+    def step(self, temperature, water, soil, light):
+        if self._check_temperature(temperature) and \
+                self._check_water(water) and \
+                self._check_soil(soil) and \
+                self._check_light(light):
+            self._radius += 1
+        else:
+            self._radius -= 0.2
+        if self._radius < 0 or self._radius > 40:
+            self.reset()
+        self._update_color()
+
+
+#UI.py
+
+import tkinter
+import tkinter.ttk
+
+
+def rgbtohex(r, g, b):
+    return f'#{r:02x}{g:02x}{b:02x}'
+
+
+class MainWindow(tkinter.Tk):
+    def __init__(self, orangery):
+        super().__init__()
+        self.geometry("1000x600+500+200")   #размер: 1000x600 пикселей, позиция: 500 пикселей от левого края экрана и 200 пикселей от верхнего края экрана
+        self.title("Оранжерея")
+
+        self._orangery = orangery
+
+        self._canvas_frame = tkinter.Frame(self)
+        self._input_frame = tkinter.Frame(self)
+        self._canvas = tkinter.Canvas(self._canvas_frame, bg=rgbtohex(153, 102, 51))
+
+        self._canvas_frame.place(width=800, height=600, x=0, y=0)
+        self._input_frame.place(width=195, height=600, x=805, y=0)
+        self._canvas.pack(fill="both", expand=True)
+
+        #создание меток и ползунков для задания параметров температуры, влажности, качества почвы и уровня света в оранжерее
+
+        temperature_label = tkinter.Label(self._input_frame, text="Температура:", anchor='w')
+        water_label = tkinter.Label(self._input_frame, text="Влажность:", anchor='w')
+        soil_label = tkinter.Label(self._input_frame, text="Качество почвы:", anchor='w')
+        light_label = tkinter.Label(self._input_frame, text="Уровень света:", anchor='w')
+
+        #создание ползунков
+
+        self._scale_temperature = tkinter.Scale(self._input_frame, orient=tkinter.HORIZONTAL, length=185, from_=0, to=50)
+        self._scale_water = tkinter.Scale(self._input_frame, orient=tkinter.HORIZONTAL, length=185, from_=0, to=90)
+        self._scale_soil = tkinter.Scale(self._input_frame, orient=tkinter.HORIZONTAL, length=185, from_=0, to=70)
+        self._scale_light = tkinter.Scale(self._input_frame, orient=tkinter.HORIZONTAL, length=185, from_=0, to=80)
+
+        temperature_label.pack(fill='both')
+        self._scale_temperature.pack()
+
+        water_label.pack(fill='both', pady=(10, 0))    #отступ сверху для каждого нового элемента = 10 пикселей
+        self._scale_water.pack()
+
+        soil_label.pack(fill='both', pady=(10, 0))
+        self._scale_soil.pack()
+
+        light_label.pack(fill='both', pady=(10, 0))
+        self._scale_light.pack()
+
+        #устанавливаем значения ползунков по умолчанию (возьмем сразу хорошие параметры для гепсофила)
+
+        self._scale_temperature.set(20)
+        self._scale_water.set(5)
+        self._scale_soil.set(50)
+        self._scale_light.set(30)
+
+        self.after(250, self._step)
+
+    def _draw_plant(self, position, radius, color, name, description): #отрисовка отдельного растения в оранжерее
+        self._canvas.create_oval(position[0] - radius, position[1] - radius,
+                                 position[0] + radius, position[1] + radius,
+                                 fill=rgbtohex(*color))  #само растение (представляется в виде овала)
+        self._canvas.create_text(position[0], position[1] + 80, fill="white", anchor="center", text=name + "\n" + description) #описание растения
+
+    def _draw_plants(self, plants): #отрисовка всех растений в оранжерее
+        self._canvas.delete("all")
+        for plant in plants:
+            self._draw_plant(plant.get_position(), plant.get_radius(), plant.get_color(), plant.get_name(), plant.get_ideal_chars())
+
+    def _step(self):
+
+        #получение текущих значений параметров (температура, почва и тд)
+
+        temperature = self._scale_temperature.get()
+        water = self._scale_water.get()
+        soil = self._scale_soil.get()
+        light = self._scale_light.get()
+
+        #принимаем эти значения и возвращам список обновленных растений в соответствии с заданными параметрами
+
+        plants = self._orangery.step(temperature, water, soil, light)
+
+        self._draw_plants(plants) #перерисовываем растения на холсте
+        self.after(250, self._step)   #циклическое обновление (через 250 мс) состояния растений в оранжерее
+
+#main.py
+
+import UI
+import Orangery
+
+import Gipsofil
+import Lavanda
+import Georgina
+import Romashka
+import Pion
+import Lilia
+
+orangery = Orangery.Orangery()
+
+gipsofil = Gipsofil.Gipsofil((200, 50))
+orangery.add_plant(gipsofil)
+
+lavanda = Lavanda.Lavanda((400, 50))
+orangery.add_plant(lavanda)
+
+georgina = Georgina.Georgina((600, 50))
+orangery.add_plant(georgina)
+
+romashka = Romashka.Romashka((200, 200))
+orangery.add_plant(romashka)
+
+pion = Pion.Pion((400, 200))
+orangery.add_plant(pion)
+
+lilia = Lilia.Lilia((600, 200))
+orangery.add_plant(lilia)
+
+main_window = UI.MainWindow(orangery)
+main_window.mainloop()
+
+
+#Gipsofil.py
+
+import Plant
+
+
+class Gipsofil(Plant.Plant):
+    def __init__(self, position):
+        super().__init__(position)
+
+        self._name = "Гипсофил"
+        self._ideal_temperature = 20
+        self._ideal_water = 5
+        self._ideal_soil = 50
+        self._ideal_light = 30
+
+        self._update_color()
+        self._update_start_settings()
+
+#Georgina.py
+
+import Plant
+
+
+class Georgina(Plant.Plant):
+    def __init__(self, position):
+        super().__init__(position)
+
+        self._name = "Георгина"
+        self._ideal_temperature = 25
+        self._ideal_water = 35
+        self._ideal_soil = 50
+        self._ideal_light = 5
+
+        self._update_color()
+        self._update_start_settings()
+
+#Romashka.py
+
+import Plant
+
+
+class Romashka(Plant.Plant):
+    def __init__(self, position):
+        super().__init__(position)
+
+        self._name = "Ромашка"
+        self._ideal_temperature = 30
+        self._ideal_water = 20
+        self._ideal_soil = 70
+        self._ideal_light = 50
+
+        self._update_color()
+        self._update_start_settings()
+
+
+#Pion.py
+
+import Plant
+
+
+class Pion(Plant.Plant):
+    def __init__(self, position):
+        super().__init__(position)
+
+        self._name = "Пион"
+        self._ideal_temperature = 20
+        self._ideal_water = 30
+        self._ideal_soil = 30
+        self._ideal_light = 30
+
+        self._update_color()
+        self._update_start_settings()
+
+
+#Lavanda.py
+
+import Plant
+
+
+class Lavanda(Plant.Plant):
+    def __init__(self, position):
+        super().__init__(position)
+
+        self._name = "Лаванда"
+        self._ideal_temperature = 10
+        self._ideal_water = 20
+        self._ideal_soil = 30
+        self._ideal_light = 70
+
+        self._update_color()
+        self._update_start_settings()
+
+
+#Lilia.py
+
+import Plant
+
+
+class Lilia(Plant.Plant):
+    def __init__(self, position):
+        super().__init__(position)
+
+        self._name = "Лилия"
+        self._ideal_temperature = 5
+        self._ideal_water = 5
+        self._ideal_soil = 20
+        self._ideal_light = 40
+
+        self._update_color()
+        self._update_start_settings()
+
